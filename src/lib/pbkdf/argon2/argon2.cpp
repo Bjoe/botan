@@ -190,7 +190,31 @@ uint32_t index_alpha(uint64_t random,
                      size_t lane,
                      size_t index)
    {
-   return 0;
+   size_t ref_lane = static_cast<uint32_t>(random >> 32) % threads;
+
+   if(n == 0 && slice == 0)
+      ref_lane = lane;
+
+   size_t m = 3*segments;
+   size_t s = ((slice+1) % 4)*segments;
+
+   if(lane == ref_lane)
+      m += index;
+
+   if(n == 0) {
+         m = slice*segments;
+         s = 0;
+         if(slice == 0 || lane == ref_lane)
+            m += index;
+   }
+
+   if(index == 0 || lane == ref_lane)
+      m -= 1;
+
+   uint64_t p = static_cast<uint32_t>(random);
+   p = (p * p) >> 32;
+   p = (p * m) >> 32;
+   return lane*lanes + (s + m - (p+1)) % lanes;
    }
 
 void process_blocks(secure_vector<uint64_t>& B,
@@ -201,6 +225,8 @@ void process_blocks(secure_vector<uint64_t>& B,
    {
    const size_t lanes = memory / threads;
    const size_t segments = lanes / SYNC_POINTS;
+
+   printf("B.size() = %d\n", B.size());
 
    for(size_t n = 0; n != t; ++n)
       {
@@ -220,6 +246,7 @@ void process_blocks(secure_vector<uint64_t>& B,
                if(index == 0 && slice == 0)
                   prev += lanes;
 
+               printf("prev = %016llX\n", prev); fflush(0);
                BOTAN_ASSERT_NOMSG(128*prev < B.size());
                uint64_t random = B[128*prev];
                size_t new_offset = index_alpha(random, lanes, segments, threads, n, slice, lane, index);
