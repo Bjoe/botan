@@ -19,7 +19,7 @@ static const size_t SYNC_POINTS = 4;
 
 secure_vector<uint8_t> argon2_H0(HashFunction& blake2b,
                                  size_t output_len,
-                                 const std::string& password,
+                                 const char* password, size_t password_len,
                                  const uint8_t salt[], size_t salt_len,
                                  const uint8_t key[], size_t key_len,
                                  const uint8_t ad[], size_t ad_len,
@@ -35,7 +35,7 @@ secure_vector<uint8_t> argon2_H0(HashFunction& blake2b,
    blake2b.update_le<uint32_t>(y);
 
    blake2b.update_le<uint32_t>(password.size());
-   blake2b.update(password);
+   blake2b.update(cast_char_to_uint8(password), password_len);
 
    blake2b.update_le<uint32_t>(salt_len);
    blake2b.update(salt, salt_len);
@@ -265,7 +265,7 @@ void process_blocks(secure_vector<uint64_t>& B,
 }
 
 void argon2(uint8_t output[], size_t output_len,
-            const std::string& password,
+            const char* password, size_t password_len,
             const uint8_t salt[], size_t salt_len,
             const uint8_t key[], size_t key_len,
             const uint8_t ad[], size_t ad_len,
@@ -279,7 +279,8 @@ void argon2(uint8_t output[], size_t output_len,
 
    std::unique_ptr<HashFunction> blake2(new Blake2b);
 
-   const secure_vector<uint8_t> H0 = argon2_H0(*blake2, output_len, password,
+   const secure_vector<uint8_t> H0 = argon2_H0(*blake2, output_len,
+                                               password, password_len,
                                                salt, salt_len,
                                                key, key_len,
                                                ad, ad_len,
