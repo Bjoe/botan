@@ -1,13 +1,13 @@
 language: cpp
 
-#os:
+# os:
 #  - osx
 #  - linux
 
 dist: xenial
 sudo: required
 
-#compiler:
+# compiler:
 #  - clang
 #  - gcc
 
@@ -34,6 +34,30 @@ sudo: required
 #     - BUILD_MODE="nist"
 #     - BUILD_MODE="docs"
 #     - BUILD_MODE="lint"
+
+env:
+- BUILD_MODE="android-24-arm64-v8a"
+addons:
+  apt:
+    packages:
+      - openjdk-8-jdk
+before_install:
+  - export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+  - wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
+  - unzip -qq sdk-tools-linux-4333796.zip -d /opt/android-sdk
+  - rm sdk-tools-linux-4333796.zip
+  - echo "y" | /opt/android-sdk/tools/bin/sdkmanager "platform-tools" "system-images;android-24;default;arm64-v8a" "platforms;android-24" "emulator" "ndk-bundle" "cmake;3.10.2.4988404" > /dev/null
+before_script:
+  - export TERM=dumb
+  - export _NO_CHECK_SIGNATURE=true
+  - export ANDROID_SDK_ROOT=/opt/android-sdk
+  - echo no | /opt/android-sdk/tools/bin/avdmanager create avd -n test -k "system-images;android-24;default;arm64-v8a"
+  - /opt/android-sdk/emulator/emulator -avd test -no-audio -no-window -dns-server 8.8.8.8 &
+  #- android-wait-for-emulator || android-wait-for-emulator
+  - /opt/android-sdk/platform-tools/adb shell input keyevent 82 &
+script:
+  - ./configure.py --without-documentation --os=android --cpu=arm64 --verbose --disable-shared-library --cc-bin=/opt/android-sdk/ndk-bundle/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --extra-cxxflags="-O3 -DNDEBUG -funwind-tables -no-canonical-prefixes -D__ANDROID_API__=24 -fexceptions -frtti --sysroot=/opt/android-sdk/ndk-bundle/sysroot -isystem  /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++/include -isystem  /opt/android-sdk/ndk-bundle/sources/android/support/include -isystem  /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++abi/include -isystem  /opt/android-sdk/ndk-bundle/sysroot/usr/include -isystem  /opt/android-sdk/ndk-bundle/sysroot/usr/include/aarch64-linux-android -std=c++14 --target=aarch64-none-linux-android --gcc-toolchain=/opt/android-sdk/ndk-bundle/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64 -fPIC" --ldflags="-O3 -DNDEBUG -funwind-tables -no-canonical-prefixes -D__ANDROID_API__=24 -fexceptions -frtti --sysroot=/opt/android-sdk/ndk-bundle/sysroot -isystem  /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++/include -isystem  /opt/android-sdk/ndk-bundle/sources/android/support/include -isystem  /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++abi/include -isystem  /opt/android-sdk/ndk-bundle/sysroot/usr/include -isystem  /opt/android-sdk/ndk-bundle/sysroot/usr/include/aarch64-linux-android -std=c++14 --target=aarch64-none-linux-android --gcc-toolchain=/opt/android-sdk/ndk-bundle/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64 -fPIC --sysroot=/opt/android-sdk/ndk-bundle/platforms/android-24/arch-arm64 -fPIE -pie -Wl,--gc-sections -latomic -lm -ldl -lc -lgcc -L/opt/android-sdk/ndk-bundle/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/24 -L/opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++/libs/arm64-v8a /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++_static.a /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++abi.a"
+  - make -j2
 
 # matrix:
 #   exclude:
@@ -88,33 +112,6 @@ sudo: required
 #     - os: linux
 #       compiler: clang
 #       env: BUILD_MODE="cross-arm64"
-
-compiler:
-  - clang
-env:
-  - ANDROID_ABI=arm64-v8a
-  - ANDROID_PLATFORM=android-24
-addons:
-  apt:
-    packages:
-      - openjdk-8-jdk
-before_install:
-  - export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
-  - wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
-  - unzip -qq sdk-tools-linux-4333796.zip -d /opt/android-sdk
-  - rm sdk-tools-linux-4333796.zip
-  - echo "y" | /opt/android-sdk/tools/bin/sdkmanager "platform-tools" "system-images;android-24;default;arm64-v8a" "platforms;android-24" "emulator" "ndk-bundle" "cmake;3.10.2.4988404" > /dev/null
-before_script:
-  - export TERM=dumb
-  - export _NO_CHECK_SIGNATURE=true
-  - export ANDROID_SDK_ROOT=/opt/android-sdk
-  - echo no | /opt/android-sdk/tools/bin/avdmanager create avd -n test -k "system-images;android-24;default;arm64-v8a"
-  - /opt/android-sdk/emulator/emulator -avd test -no-audio -no-window -dns-server 8.8.8.8 &
-  #- android-wait-for-emulator || android-wait-for-emulator
-  - /opt/android-sdk/platform-tools/adb shell input keyevent 82 &
-script:
-  - ./configure.py --without-documentation --os=android --cpu=arm64 --verbose --disable-shared-library --cc-bin=/opt/android-sdk/ndk-bundle/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --extra-cxxflags="-O3 -DNDEBUG -std=c++14 -funwind-tables -no-canonical-prefixes -D__ANDROID_API__=24 -fexceptions -frtti --sysroot=/opt/android-sdk/ndk-bundle/sysroot -isystem  /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++/include -isystem  /opt/android-sdk/ndk-bundle/sources/android/support/include -isystem  /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++abi/include -isystem  /opt/android-sdk/ndk-bundle/sysroot/usr/include -isystem  /opt/android-sdk/ndk-bundle/sysroot/usr/include/aarch64-linux-android -std=c++14 --target=aarch64-none-linux-android --gcc-toolchain=/opt/android-sdk/ndk-bundle/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64 -fPIC" --ldflags="-O3 -DNDEBUG -std=c++14   -funwind-tables -no-canonical-prefixes -D__ANDROID_API__=24 -fexceptions -frtti --sysroot=/opt/android-sdk/ndk-bundle/sysroot -isystem  /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++/include -isystem  /opt/android-sdk/ndk-bundle/sources/android/support/include -isystem  /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++abi/include -isystem  /opt/android-sdk/ndk-bundle/sysroot/usr/include -isystem  /opt/android-sdk/ndk-bundle/sysroot/usr/include/aarch64-linux-android -std=c++14 --target=aarch64-none-linux-android --gcc-toolchain=/opt/android-sdk/ndk-bundle/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64 -fPIC --sysroot=/opt/android-sdk/ndk-bundle/platforms/android-24/arch-arm64 -fPIE -pie -Wl,--gc-sections -latomic -lm -ldl -lc -lgcc -L/opt/android-sdk/ndk-bundle/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/24 -L/opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++/libs/arm64-v8a /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++_static.a /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++abi.a"
-  - make -j2
 
 # install:
 #   - ./src/scripts/ci/setup_travis.sh
