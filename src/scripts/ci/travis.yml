@@ -1,14 +1,144 @@
-language: C++
+language: cpp
 
-before_script: 
-  - wget https://dl.google.com/android/repository/android-ndk-r20-linux-x86_64.zip
-  - unzip -qq android-ndk-r20-linux-x86_64.zip -d /opt
-  - rm android-ndk-r20-linux-x86_64.zip
-  - ls /
-  - ls /opt/android-ndk-r20
+os:
+  - osx
+  - linux
+
+dist: xenial
+sudo: required
+
+compiler:
+  - clang
+  - gcc
+
+env:
+  global:
+    - CCACHE_MAXSIZE=800M
+
+  matrix:
+    - BUILD_MODE="shared"
+    - BUILD_MODE="coverage"
+    - BUILD_MODE="fuzzers"
+    - BUILD_MODE="valgrind"
+    - BUILD_MODE="cross-i386"
+    - BUILD_MODE="cross-ppc32"
+    - BUILD_MODE="cross-ppc64"
+    - BUILD_MODE="cross-arm32"
+    - BUILD_MODE="cross-arm64"
+    - BUILD_MODE="cross-mips64"
+    - BUILD_MODE="cross-win64"
+    - BUILD_MODE="gcc4.8"
+    - BUILD_MODE="static"
+    - BUILD_MODE="mini-shared"
+    - BUILD_MODE="bsi"
+    - BUILD_MODE="nist"
+    - BUILD_MODE="docs"
+    - BUILD_MODE="lint"
+
+matrix:
+  exclude:
+    # Skip GCC on OS X entirely
+    - os: osx
+      compiler: gcc
+
+    # XCode 9.4 ICEs on 32-bit ARM builds
+    - os: osx
+      env: BUILD_MODE="cross-arm32"
+
+    # Run static, docs, lint, bsi, nist, fuzzers, coverage, valgrind,
+    # sanitizer, minimized and non-ARM cross builds only on Linux/gcc.
+    # The sanitizer builds under Clang run the tests very slowly and
+    # cause CI timeouts.
+
+    - compiler: clang
+      env: BUILD_MODE="static"
+    - compiler: clang
+      env: BUILD_MODE="bsi"
+    - compiler: clang
+      env: BUILD_MODE="nist"
+    - compiler: clang
+      env: BUILD_MODE="lint"
+    - compiler: clang
+      env: BUILD_MODE="docs"
+    - compiler: clang
+      env: BUILD_MODE="coverage"
+    - compiler: clang
+      env: BUILD_MODE="fuzzers"
+    - compiler: clang
+      env: BUILD_MODE="valgrind"
+    - compiler: clang
+      env: BUILD_MODE="mini-shared"
+    - compiler: clang
+      env: BUILD_MODE="cross-win64"
+    - compiler: clang
+      env: BUILD_MODE="cross-ppc32"
+    - compiler: clang
+      env: BUILD_MODE="cross-ppc64"
+    - compiler: clang
+      env: BUILD_MODE="cross-mips64"
+    - compiler: clang
+      env: BUILD_MODE="cross-i386"
+    - compiler: clang
+      env: BUILD_MODE="gcc4.8"
+
+   # No ARM Clang compiler on Linux
+    - os: linux
+      compiler: clang
+      env: BUILD_MODE="cross-arm32"
+    - os: linux
+      compiler: clang
+      env: BUILD_MODE="cross-arm64"
+
+    - compiler: clang
+      env:
+        - ANDROID_ABI=arm64-v8a
+        - ANDROID_PLATFORM=android-24
+      addons:
+        apt:
+          packages:
+            - openjdk-8-jdk
+      before_install:
+        - export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+        - wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
+        - unzip -qq sdk-tools-linux-4333796.zip -d /opt/android-sdk
+        - rm sdk-tools-linux-4333796.zip
+        - echo "y" | /opt/android-sdk/tools/bin/sdkmanager "platform-tools" "system-images;android-24;default;arm64-v8a" "platforms;android-24" "emulator" "ndk-bundle" "cmake;3.10.2.4988404" > /dev/null
+      before_script:
+        - export TERM=dumb
+        - export _NO_CHECK_SIGNATURE=true
+        - export ANDROID_SDK_ROOT=/opt/android-sdk
+        - echo no | /opt/android-sdk/tools/bin/avdmanager create avd -n test -k "system-images;android-24;default;arm64-v8a"
+        - /opt/android-sdk/emulator/emulator -avd test -no-audio -no-window -dns-server 8.8.8.8 &
+        #- android-wait-for-emulator || android-wait-for-emulator
+        - /opt/android-sdk/platform-tools/adb shell input keyevent 82 &
+      script:
+        - ./configure.py --without-documentation --os=android --cpu=arm64 --verbose --disable-shared-library --cc-bin=/opt/android-sdk/ndk-bundle/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --extra-cxxflags="-O3 -DNDEBUG -std=c++14 -funwind-tables -no-canonical-prefixes -D__ANDROID_API__=24 -fexceptions -frtti --sysroot=/opt/android-sdk/ndk-bundle/sysroot -isystem  /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++/include -isystem  /opt/android-sdk/ndk-bundle/sources/android/support/include -isystem  /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++abi/include -isystem  /opt/android-sdk/ndk-bundle/sysroot/usr/include -isystem  /opt/android-sdk/ndk-bundle/sysroot/usr/include/aarch64-linux-android -std=c++14 --target=aarch64-none-linux-android --gcc-toolchain=/opt/android-sdk/ndk-bundle/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64 -fPIC" --ldflags="-O3 -DNDEBUG -std=c++14   -funwind-tables -no-canonical-prefixes -D__ANDROID_API__=24 -fexceptions -frtti --sysroot=/opt/android-sdk/ndk-bundle/sysroot -isystem  /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++/include -isystem  /opt/android-sdk/ndk-bundle/sources/android/support/include -isystem  /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++abi/include -isystem  /opt/android-sdk/ndk-bundle/sysroot/usr/include -isystem  /opt/android-sdk/ndk-bundle/sysroot/usr/include/aarch64-linux-android -std=c++14 --target=aarch64-none-linux-android --gcc-toolchain=/opt/android-sdk/ndk-bundle/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64 -fPIC --sysroot=/opt/android-sdk/ndk-bundle/platforms/android-24/arch-arm64 -fPIE -pie -Wl,--gc-sections -latomic -lm -ldl -lc -lgcc -L/opt/android-sdk/ndk-bundle/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/24 -L/opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++/libs/arm64-v8a /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++_static.a /opt/android-sdk/ndk-bundle/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++abi.a"
+        - make
+
+install:
+  - ./src/scripts/ci/setup_travis.sh
 
 script:
-  - ./configure.py --without-documentation --os=android --cpu=arm64 --verbose --disable-shared-library --cc-bin=/opt/android-ndk-r20/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --extra-cxxflags="-O3 -DNDEBUG -std=c++14 -funwind-tables -no-canonical-prefixes -D__ANDROID_API__=24 -fexceptions -frtti --sysroot=/opt/android-ndk-r20/sysroot -isystem  /opt/android-ndk-r20/sources/cxx-stl/llvm-libc++/include -isystem  /opt/android-ndk-r20/sources/android/support/include -isystem  /opt/android-ndk-r20/sources/cxx-stl/llvm-libc++abi/include -isystem  /opt/android-ndk-r20/sysroot/usr/include -isystem  /opt/android-ndk-r20/sysroot/usr/include/aarch64-linux-android -std=c++14 --target=aarch64-none-linux-android --gcc-toolchain=/opt/android-ndk-r20/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64 -fPIC" --ldflags="-O3 -DNDEBUG -std=c++14   -funwind-tables -no-canonical-prefixes -D__ANDROID_API__=24 -fexceptions -frtti --sysroot=/opt/android-ndk-r20/sysroot -isystem  /opt/android-ndk-r20/sources/cxx-stl/llvm-libc++/include -isystem  /opt/android-ndk-r20/sources/android/support/include -isystem  /opt/android-ndk-r20/sources/cxx-stl/llvm-libc++abi/include -isystem  /opt/android-ndk-r20/sysroot/usr/include -isystem  /opt/android-ndk-r20/sysroot/usr/include/aarch64-linux-android -std=c++14 --target=aarch64-none-linux-android --gcc-toolchain=/opt/android-ndk-r20/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64 -fPIC --sysroot=/opt/android-ndk-r20/platforms/android-24/arch-arm64 -fPIE -pie -Wl,--gc-sections -latomic -lm -ldl -lc -lgcc -L/opt/android-ndk-r20/sources/cxx-stl/llvm-libc++/libs/arm64-v8a /opt/android-ndk-r20/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++_static.a /opt/android-ndk-r20/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++abi.a /opt/android-ndk-r20/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++.a.24"
-  - make
-  - make install
-  
+  - ./src/scripts/ci_build.py --os=$TRAVIS_OS_NAME --cc=$CC --cc-bin=$CXX --without-pylint3 --pkcs11-lib=/tmp/softhsm/lib/softhsm/libsofthsm2.so $BUILD_MODE
+
+# whitelist branches to avoid testing feature branches twice (as branch and as pull request)
+branches:
+  only:
+    - master
+    - release-2
+    - coverity_scan
+
+git:
+  depth: 10
+
+cache:
+  ccache: true
+
+addons:
+  coverity_scan:
+    project:
+      name: "randombit/botan"
+    notification_email: jack@randombit.net
+    build_command_prepend: "./configure.py --no-optimizations --with-zlib --with-openssl"
+    build_command: "make -j2"
+    branch_pattern: coverity_scan
