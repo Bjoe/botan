@@ -106,6 +106,7 @@ bogo_shim: %{out_dir}/botan_bogo_shim
 %{if build_static_lib}
 
 %{out_dir}/%{static_lib_name}: $(LIBOBJS)
+	dir $(LIBOBJS)
 	$(AR) $(AR_OPTIONS) %{ar_output_to}$@ $(LIBOBJS)
 
 %{endif}
